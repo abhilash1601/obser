@@ -13,15 +13,39 @@ spec:
       labels:
         app: backend
     spec:
+      volumes:
+        - name: backend-config
+          configMap:
+            name: backend-config
+        - name: backend-work
+          emptyDir: {}
+      initContainers:
+        - name: init-backend
+          image: node:18-alpine
+          command:
+            - sh
+            - -c
+            - cp -R /config/* /work && cd /work && npm install --production
+          volumeMounts:
+            - name: backend-config
+              mountPath: /config
+            - name: backend-work
+              mountPath: /work
       containers:
         - name: backend
-          image: obser-backend:latest
+          image: node:18-alpine
+          command:
+            - sh
+            - -c
+            - node /work/index.js
           ports:
             - containerPort: 3000
           env:
             - name: OTEL_COLLECTOR_URL
               value: "http://otel-collector.obser.svc.cluster.local:4318/v1/traces"
-
+          volumeMounts:
+            - name: backend-work
+              mountPath: /work
 ---
 apiVersion: v1
 kind: Service

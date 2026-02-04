@@ -13,12 +13,18 @@ spec:
       labels:
         app: frontend
     spec:
+      volumes:
+        - name: frontend-config
+          configMap:
+            name: frontend-config
       containers:
         - name: frontend
-          image: obser-frontend:latest
+          image: nginx:alpine
           ports:
             - containerPort: 80
-
+          volumeMounts:
+            - name: frontend-config
+              mountPath: /usr/share/nginx/html
 ---
 apiVersion: v1
 kind: Service

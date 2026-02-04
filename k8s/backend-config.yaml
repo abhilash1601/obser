@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: obser
+data:
+  package.json: |
+    {
+      "name": "obser-backend",
+      "version": "0.1.0",
+      "main": "index.js",
+      "dependencies": {
+        "express": "^4.18.2",
+        "pino": "^8.0.0",
+        "prom-client": "^14.0.1",
+        "@opentelemetry/api": "^1.0.0",
+        "@opentelemetry/sdk-node": "^0.36.0",
+        "@opentelemetry/auto-instrumentations-node": "^0.36.0",
+        "@opentelemetry/exporter-trace-otlp-http": "^0.36.0"
+      }
+    }
+
+  index.js: |
+    const express = require('express');
+    const pino = require('pino');
+    const client = require('prom-client');
+
+    // OpenTelemetry setup
+    const { NodeSDK } = require('@opentelemetry/sdk-node');
+    const { getNodeAutoInstrumentations } = require('@opentelemetry/auto-instrumentations-node');
+    const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-http');
+
+    const OTEL_COLLECTOR_URL = process.env.OTEL_COLLECTOR_URL || 'http://otel-collector:4318/v1/traces';
+
+    const traceExporter = new OTLPTraceExporter({ url: OTEL_COLLECTOR_URL });
+
+    const sdk = new NodeSDK({
+      traceExporter,
+      instrumentations: [getNodeAutoInstrumentations()]
+    });
+
+    sdk.start();
+
+    const logger = pino();
+
+    const app = express();
+    const requestCount = new client.Counter({ name: 'http_request_total', help: 'Total HTTP requests' });
+
+    app.get('/api', (req, res) => {
+      requestCount.inc();
+      logger.info({ path: req.path }, 'request received');
+      res.json({ msg: 'hello from backend' });
+    });
+
+    app.get('/metrics', async (req, res) => {
+      res.set('Content-Type', client.register.contentType);
+      res.end(await client.register.metrics());
+    });
+
+    const port = process.env.PORT || 3000;
+    app.listen(port, () => {
+      logger.info({ port }, 'backend listening');
+    });
+
+    process.on('SIGTERM', async () => {
+      await sdk.shutdown();
+      process.exit(0);
+    });

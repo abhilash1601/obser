@@ -14,18 +14,10 @@ Quick commands (assuming Docker + kubectl + kind):
 kind create cluster --name obser
 ```
 
-2. Build images and load into kind:
+2. Apply k8s manifests (no local image builds required):
 
 ```bash
-docker build -t obser-backend:latest ./backend
-docker build -t obser-frontend:latest ./frontend
-kind load docker-image obser-backend:latest --name obser
-kind load docker-image obser-frontend:latest --name obser
-```
-
-3. Apply k8s manifests:
-
-```bash
+# create namespace and apply manifests; backend/frontend run from public images using ConfigMaps
 kubectl apply -f k8s/namespace.yaml
 kubectl apply -f k8s -n obser
 kubectl apply -f elastic -n obser
@@ -48,5 +40,5 @@ kubectl port-forward deployment/prometheus 9090:9090 -n obser
 ```
 
 Notes / next steps
-- Run `npm install` in `backend` if building images locally outside of Docker.
-- This is a minimal scaffold to demonstrate metrics, logs, and traces in-cluster; adjust for production.
+- Backend and frontend run directly from public images (`node:18-alpine`, `nginx:alpine`) and use ConfigMaps/initContainers to install and run application code at pod start. No Docker builds are necessary.
+- This is a minimal scaffold to demonstrate metrics, logs, and traces in-cluster; adjust for production (persistence, security, resource limits).
