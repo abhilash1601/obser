@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: obser
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: obser-backend:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: OTEL_COLLECTOR_URL
+              value: "http://otel-collector.obser.svc.cluster.local:4318/v1/traces"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: obser
+spec:
+  selector:
+    app: backend
+  ports:
+    - port: 3000
+      targetPort: 3000
+      protocol: TCP
+  type: ClusterIP
